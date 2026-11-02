@@ -1,0 +1,220 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Plan Takeoff – quantities and volume from drawings</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@75..125,400..800&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --paper:#e9eee9; --sheet:#f7f9f6; --ink:#16251f; --muted:#5a6b63;
+    --line:#b9c5bd; --pencil:#2f6f5e; --mark:#e8590c; --warn:#b42318;
+    --sans:"Archivo","Helvetica Neue",Arial,sans-serif; --serif:"Source Serif 4",Georgia,serif;
+  }
+  @media (prefers-color-scheme: dark){
+    :root{ --paper:#101a16; --sheet:#17241f; --ink:#e4ece7; --muted:#93a69c; --line:#2f423a; --pencil:#7fc9b3; --mark:#ff8a4c; --warn:#ff8f85; }
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--sans);line-height:1.5;
+    background-image:linear-gradient(var(--line) 1px,transparent 1px),linear-gradient(90deg,var(--line) 1px,transparent 1px);
+    background-size:32px 32px;background-position:-1px -1px;}
+  body::before{content:"";position:fixed;inset:0;background:var(--paper);opacity:.82;z-index:-1}
+  main{max-width:1100px;margin:0 auto;padding:40px 20px 80px}
+  h1{font-family:var(--serif);font-weight:600;font-size:clamp(2rem,5vw,3.2rem);line-height:1.08;margin:0 0 10px;max-width:16ch}
+  .lede{font-family:var(--serif);color:var(--muted);font-size:1.1rem;max-width:56ch;margin:0 0 28px}
+  .sheet{background:var(--sheet);border:1.5px solid var(--ink);padding:22px;margin-bottom:22px}
+  .row{display:grid;grid-template-columns:1.6fr 1fr;gap:22px}
+  @media (max-width:760px){.row{grid-template-columns:1fr}}
+  #drop{border:1.5px dashed var(--pencil);padding:34px 18px;text-align:center;cursor:pointer;min-height:170px;
+    display:flex;flex-direction:column;justify-content:center;gap:6px}
+  #drop:hover,#drop.over,#drop:focus-visible{background:color-mix(in srgb,var(--pencil) 10%,transparent);outline:none}
+  #drop strong{font-size:1.1rem}
+  #drop span{color:var(--muted);font-size:.9rem}
+  fieldset{border:0;padding:0;margin:0;display:grid;gap:12px;align-content:start}
+  label{display:grid;gap:3px;font-size:.88rem;color:var(--muted)}
+  input[type=number]{font:inherit;font-size:1rem;padding:8px 10px;border:1.5px solid var(--ink);background:var(--sheet);color:var(--ink);width:100%}
+  input:focus-visible,button:focus-visible{outline:3px solid var(--mark);outline-offset:2px}
+  button{font:inherit;font-weight:700;padding:12px 18px;border:1.5px solid var(--ink);cursor:pointer}
+  #go{background:var(--mark);color:#fff;border-color:var(--mark);width:100%;margin-top:4px}
+  #go:disabled{opacity:.55;cursor:wait}
+  .ghost{background:transparent;color:var(--ink)}
+  #err{color:var(--warn);font-weight:600;margin:12px 0 0}
+  #out{display:none}
+  .totals{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:0;border:1.5px solid var(--ink);margin-bottom:22px}
+  .totals div{padding:16px 18px;border-right:1.5px solid var(--ink);background:var(--sheet)}
+  .totals div:last-child{border-right:0}
+  .totals b{display:block;font-family:var(--serif);font-size:2rem;line-height:1.1;font-variant-numeric:tabular-nums}
+  .totals small{color:var(--muted)}
+  .totals .hero b{color:var(--mark);font-size:2.6rem}
+  table{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums}
+  th,td{text-align:left;padding:9px 10px;border-bottom:1px solid var(--line);font-size:.95rem}
+  th{font-weight:700;border-bottom:1.5px solid var(--ink)}
+  td.n,th.n{text-align:right}
+  .tag{font-size:.8rem;padding:2px 8px;border:1px solid var(--pencil);color:var(--pencil)}
+  .tag.bad{border-color:var(--warn);color:var(--warn)}
+  .scroll{overflow-x:auto}
+  #stage{position:relative;border:1.5px solid var(--ink);background:#fff;line-height:0}
+  #prev,#orig{width:100%;height:auto;display:block}
+  #orig{border:1.5px solid var(--ink);background:#fff;max-height:560px;object-fit:contain}
+  #ov{position:absolute;inset:0;width:100%;height:100%}
+  #ov rect{fill-opacity:.16;stroke-width:3;vector-effect:non-scaling-stroke;cursor:pointer}
+  #ov rect.dim{fill:#e8590c;stroke:#e8590c} #ov rect.area{fill:#0b7285;stroke:#0b7285} #ov rect.name{fill:#2f6f5e;stroke:#2f6f5e}
+  #ov g.dimmed{opacity:.12} #ov g.on rect{fill-opacity:.4;stroke-width:4}
+  #ov text{font:700 15px var(--sans);fill:#fff;paint-order:stroke;stroke:#16251f;stroke-width:4px;pointer-events:none}
+  tr.on td{background:color-mix(in srgb,var(--mark) 16%,transparent)} tbody tr{cursor:pointer}
+  .legend{font-size:.85rem;color:var(--muted);display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+  .k{width:14px;height:14px;display:inline-block;border:2px solid} .k.dim{border-color:#e8590c;background:#e8590c40}
+  .k.area{border-color:#0b7285;background:#0b728540;margin-left:8px} .k.name{border-color:#2f6f5e;background:#2f6f5e40;margin-left:8px}
+  .bar{display:flex;gap:10px;flex-wrap:wrap;align-items:center;justify-content:space-between;margin-bottom:12px}
+  h2{font-family:var(--serif);font-size:1.4rem;margin:0}
+  .note{color:var(--muted);font-size:.9rem;max-width:80ch}
+  @media (prefers-reduced-motion:no-preference){ #go{transition:transform .12s} #go:active{transform:translateY(1px)} }
+</style>
+</head>
+<body>
+<main>
+  <h1>Read a plan. Get the volumes.</h1>
+  <p class="lede">Upload a floor plan. The app reads the room labels with OCR, groups them with machine learning, checks each dimension against its printed area, and multiplies by your storey height.</p>
+
+  <form id="f" class="sheet row">
+    <div id="drop" tabindex="0" role="button" aria-label="Choose a plan file">
+      <strong id="fname">Drop a plan here or click to choose</strong>
+      <span>PDF, PNG, JPG or TIFF, up to 40 MB</span>
+      <input id="file" name="file" type="file" accept=".pdf,image/*" hidden>
+    </div>
+    <fieldset>
+      <label>Floor-to-floor height (m)<input name="height" type="number" step="0.05" min="1" value="3.0"></label>
+      <label>Slab thickness (m)<input name="slab" type="number" step="0.01" min="0.05" value="0.15"></label>
+      <label>Number of identical floors<input name="floors" type="number" step="1" min="1" value="1"></label>
+      <button id="go" type="submit">Extract quantities</button>
+    </fieldset>
+  </form>
+  <p id="err" role="alert"></p>
+
+  <section id="out" aria-live="polite">
+    <div class="totals">
+      <div class="hero"><b id="tVol">–</b><small>Room volume, one floor (m³)</small></div>
+      <div><b id="tArea">–</b><small>Floor area (m²)</small></div>
+      <div><b id="tSlab">–</b><small>Slab concrete (m³)</small></div>
+      <div><b id="tAll">–</b><small id="tAllLbl">All floors (m³)</small></div>
+    </div>
+
+    <div class="sheet">
+      <div class="bar"><h2>Rooms found</h2><button class="ghost" id="csv" type="button">Download CSV</button></div>
+      <div class="scroll"><table>
+        <thead><tr><th>#</th><th>Space</th><th class="n">Size (m)</th><th class="n">Printed area</th><th class="n">Area (m²)</th><th class="n">Volume (m³)</th><th>Check</th></tr></thead>
+        <tbody id="rows"></tbody>
+      </table></div>
+      <p class="note" id="meta"></p>
+    </div>
+
+    <div class="sheet">
+      <div class="bar"><h2>Highlighted measurements</h2>
+        <span class="legend"><i class="k dim"></i>Size <i class="k area"></i>Printed area <i class="k name"></i>Space name</span></div>
+      <p class="note" style="margin:0 0 10px">Hover or tap a row in the table, or a label on the plan, to link them.</p>
+      <div id="stage"><img id="prev" alt="Uploaded plan, rotated upright"><svg id="ov" preserveAspectRatio="none"></svg></div>
+    </div>
+    <div class="sheet">
+      <h2 style="margin-bottom:12px">Uploaded file, as received</h2>
+      <img id="orig" alt="Original upload">
+    </div>
+  </section>
+</main>
+
+<script>
+const $ = s => document.querySelector(s);
+const drop = $('#drop'), file = $('#file');
+let data = null;
+const fmt = (n, d=2) => n == null ? '–' : Number(n).toLocaleString('en-IN', {minimumFractionDigits:d, maximumFractionDigits:d});
+
+drop.onclick = () => file.click();
+drop.onkeydown = e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); file.click(); } };
+file.onchange = () => { if (file.files[0]) $('#fname').textContent = file.files[0].name; };
+['dragover','dragenter'].forEach(ev => drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.add('over'); }));
+['dragleave','drop'].forEach(ev => drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.remove('over'); }));
+drop.addEventListener('drop', e => { file.files = e.dataTransfer.files; file.onchange(); });
+
+$('#f').onsubmit = async e => {
+  e.preventDefault();
+  $('#err').textContent = '';
+  if (!file.files[0]) { $('#err').textContent = 'Choose a plan to upload first.'; return; }
+  const btn = $('#go'); btn.disabled = true; btn.textContent = 'Reading the plan…';
+  try {
+    const res = await fetch('/analyze', { method:'POST', body:new FormData($('#f')) });
+    const j = await res.json();
+    if (!res.ok) throw new Error(j.error || 'Something went wrong.');
+    data = j; render(j);
+  } catch (err) { $('#err').textContent = err.message; }
+  btn.disabled = false; btn.textContent = 'Extract quantities';
+};
+
+function render(j) {
+  const t = j.totals;
+  $('#tVol').textContent = fmt(t.volume_m3);
+  $('#tArea').textContent = fmt(t.area_m2);
+  $('#tSlab').textContent = fmt(t.slab_m3);
+  $('#tAll').textContent = fmt(t.volume_all_floors_m3);
+  $('#tAllLbl').textContent = `All ${t.floors} floor${t.floors>1?'s':''} (m³)`;
+  $('#rows').innerHTML = j.rooms.map(r => `
+    <tr data-id="${r.id}"><td>${r.id}</td><td>${r.name}</td>
+    <td class="n">${r.dims ? r.dims[0].toFixed(2)+' × '+r.dims[1].toFixed(2) : '–'}</td>
+    <td class="n">${r.stated_area ? fmt(r.stated_area) : '–'}</td>
+    <td class="n">${fmt(r.area_m2)}</td><td class="n"><strong>${fmt(r.volume_m3)}</strong></td>
+    <td><span class="tag ${r.check==='mismatch'?'bad':''}">${r.check==='ok'?'Matches printed area':r.check==='mismatch'?'Review: size and area disagree':'Read once'}</span></td></tr>`).join('');
+  $('#meta').textContent = `Plan was rotated ${j.rotation}° to read upright. Volume = area × ${j.params.height} m height. ` +
+    (j.scale_m_per_px ? `Drawing scale measured at ${j.j_scale||j.scale_m_per_px} m per pixel.` : 'Pixel scale could not be calibrated, so figures come from printed dimensions only.') +
+    ' Rooms marked "Review" had a size that did not multiply to the printed area; the printed area was used.';
+  $('#prev').src = j.preview; $('#orig').src = j.original;
+  drawOverlay(j);
+  $('#out').style.display = 'block';
+  $('#out').scrollIntoView({behavior:'smooth'});
+}
+
+function drawOverlay(j) {
+  const NS = 'http://www.w3.org/2000/svg', ov = $('#ov');
+  ov.setAttribute('viewBox', `0 0 ${j.aspect*1000} 1000`);
+  ov.innerHTML = '';
+  j.rooms.forEach(r => {
+    const g = document.createElementNS(NS, 'g'); g.dataset.id = r.id;
+    r.boxes.forEach((b, i) => {
+      const rc = document.createElementNS(NS, 'rect');
+      rc.setAttribute('class', b.kind);
+      rc.setAttribute('x', b.x*j.aspect*1000); rc.setAttribute('y', b.y*1000);
+      rc.setAttribute('width', b.w*j.aspect*1000); rc.setAttribute('height', b.h*1000);
+      const t = document.createElementNS(NS, 'title'); t.textContent = `${r.name}: ${b.text}`; rc.appendChild(t);
+      g.appendChild(rc);
+    });
+    const f = r.boxes[0], tx = document.createElementNS(NS, 'text');
+    tx.setAttribute('x', f.x*j.aspect*1000); tx.setAttribute('y', Math.max(14, f.y*1000 - 6)); tx.textContent = r.id;
+    g.appendChild(tx);
+    g.onmouseenter = () => focusRoom(r.id); g.onmouseleave = () => focusRoom(null); g.onclick = () => focusRoom(r.id, true);
+    ov.appendChild(g);
+  });
+  document.querySelectorAll('#rows tr').forEach(tr => {
+    tr.onmouseenter = () => focusRoom(+tr.dataset.id); tr.onmouseleave = () => focusRoom(null); tr.onclick = () => focusRoom(+tr.dataset.id, true);
+  });
+}
+let pinned = null;
+function focusRoom(id, pin) {
+  if (pin) pinned = (pinned === id ? null : id);
+  const cur = id ?? pinned;
+  document.querySelectorAll('#ov g').forEach(g => {
+    g.classList.toggle('on', cur != null && +g.dataset.id === cur);
+    g.classList.toggle('dimmed', cur != null && +g.dataset.id !== cur);
+  });
+  document.querySelectorAll('#rows tr').forEach(tr => tr.classList.toggle('on', cur != null && +tr.dataset.id === cur));
+}
+
+$('#csv').onclick = () => {
+  if (!data) return;
+  const rows = [['id','space','length_m','width_m','printed_area_m2','area_m2','height_m','volume_m3','slab_m3','check']];
+  data.rooms.forEach(r => rows.push([r.id, '"'+r.name+'"', r.dims?r.dims[0]:'', r.dims?r.dims[1]:'', r.stated_area??'', r.area_m2, data.params.height, r.volume_m3, r.slab_m3, r.check]));
+  rows.push(['','TOTAL','','','',data.totals.area_m2,data.params.height,data.totals.volume_m3,data.totals.slab_m3,'']);
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([rows.map(r=>r.join(',')).join('\n')], {type:'text/csv'}));
+  a.download = 'quantities.csv'; a.click();
+};
+</script>
+</body>
+</html>

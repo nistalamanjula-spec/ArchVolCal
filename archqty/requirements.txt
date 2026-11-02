@@ -1,0 +1,6 @@
+flask
+pymupdf
+opencv-python-headless
+pytesseract
+scikit-learn
+numpy
